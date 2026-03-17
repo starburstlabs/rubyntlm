@@ -42,6 +42,7 @@ require 'openssl/digest'
 require 'socket'
 
 # Load Order is important here
+require 'net/ntlm/crypto'
 require 'net/ntlm/exceptions'
 require 'net/ntlm/field'
 require 'net/ntlm/int16_le'
@@ -123,12 +124,12 @@ module Net
       end
 
       def apply_des(plain, keys)
-        dec = OpenSSL::Cipher.new("des-cbc")
-        dec.padding = 0
-        keys.map {|k|
+        keys.map do |k|
+          dec = Crypto::DES.new
+          dec.padding = 0
           dec.key = k
           dec.encrypt.update(plain) + dec.final
-        }
+        end
       end
 
       # Generates a Lan Manager Hash
@@ -146,7 +147,7 @@ module Net
         unless opt[:unicode]
           pwd = EncodeUtil.encode_utf16le(pwd)
         end
-        OpenSSL::Digest::MD4.digest pwd
+        Crypto::MD4.digest pwd
       end
 
       # Generate a NTLMv2 Hash

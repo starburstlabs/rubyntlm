@@ -36,8 +36,7 @@ module Net
         t3 = Message::Type3.create type3_opts
         if negotiate_key_exchange?
           t3.enable(:session_key)
-          rc4 = OpenSSL::Cipher.new("rc4")
-          rc4.encrypt
+          rc4 = NTLM::Crypto::RC4.new
           rc4.key = user_session_key
           sk = rc4.update exported_session_key
           sk << rc4.final
@@ -50,7 +49,7 @@ module Net
         @exported_session_key ||=
           begin
             if negotiate_key_exchange?
-              OpenSSL::Cipher.new("rc4").random_key
+              NTLM::Crypto::RC4.new.random_key
             else
               user_session_key
             end
@@ -125,8 +124,7 @@ module Net
       def client_cipher
         @client_cipher ||=
           begin
-            rc4 = OpenSSL::Cipher.new("rc4")
-            rc4.encrypt
+            rc4 = NTLM::Crypto::RC4.new
             rc4.key = client_seal_key
             rc4
           end
@@ -135,8 +133,7 @@ module Net
       def server_cipher
         @server_cipher ||=
           begin
-            rc4 = OpenSSL::Cipher.new("rc4")
-            rc4.decrypt
+            rc4 = NTLM::Crypto::RC4.new
             rc4.key = server_seal_key
             rc4
           end
