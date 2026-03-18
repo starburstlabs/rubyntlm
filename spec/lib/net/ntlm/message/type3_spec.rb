@@ -222,4 +222,46 @@ describe Net::NTLM::Message::Type3 do
 
   end
 
+  describe '#serialize' do
+    context 'when the username contains non-ASCI characters' do
+      let(:t3) {
+        t2 = Net::NTLM::Message::Type2.new
+        t2.response(
+          {
+            :user => 'Hélène',
+            :password => '123456',
+            :domain => ''
+          },
+          {
+            :ntlmv2 => true,
+            :workstation => 'testlab.local'
+          }
+        )
+      }
+
+      it 'serializes without error' do
+        expect { t3.serialize }.not_to raise_error
+      end
+    end
+
+    subject(:message) { described_class.create(opts) }
+    context 'with the UNICODE flag set' do
+      let(:opts) { {lm_response: "\x00".b, ntlm_response: '', domain: '', workstation: '', user: '', flag: Net::NTLM::DEFAULT_FLAGS[:TYPE3] | Net::NTLM::FLAGS[:UNICODE] } }
+
+      it 'should pad the domain field to a multiple of 2' do
+        message.serialize
+        expect(message[:domain][:offset].value % 2).to eq 0
+      end
+
+      it 'should pad the user field to a multiple of 2' do
+        message.serialize
+        expect(message[:user][:offset].value % 2).to eq 0
+      end
+
+      it 'should pad the workstation field to a multiple of 2' do
+        message.serialize
+        expect(message[:workstation][:offset].value % 2).to eq 0
+      end
+    end
+  end
 end
