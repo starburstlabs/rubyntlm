@@ -3,28 +3,36 @@ module NTLM
 
   SSP_SIGN = "NTLMSSP\0"
 
+  # See [2.2.2.5 NEGOTIATE](https://msdn.microsoft.com/en-us/library/cc236650.aspx)
   FLAGS = {
       :UNICODE              => 0x00000001,
       :OEM                  => 0x00000002,
       :REQUEST_TARGET       => 0x00000004,
-      :MBZ9                 => 0x00000008,
       :SIGN                 => 0x00000010,
       :SEAL                 => 0x00000020,
       :NEG_DATAGRAM         => 0x00000040,
-      :NETWARE              => 0x00000100,
+      :NEG_LM_KEY           => 0x00000080,
       :NTLM                 => 0x00000200,
-      :NEG_NT_ONLY          => 0x00000400,
-      :MBZ7                 => 0x00000800,
+      :NEG_ANONYMOUS        => 0x00000800,
       :DOMAIN_SUPPLIED      => 0x00001000,
       :WORKSTATION_SUPPLIED => 0x00002000,
-      :LOCAL_CALL           => 0x00004000,
       :ALWAYS_SIGN          => 0x00008000,
       :TARGET_TYPE_DOMAIN   => 0x00010000,
+      :TARGET_TYPE_SERVER   => 0x00020000,
       :NTLM2_KEY            => 0x00080000,
+      :NEG_IDENTIFY         => 0x00100000,
+      :NON_NT_SESSION_KEY   => 0x00400000,
       :TARGET_INFO          => 0x00800000,
+      :NEG_VERSION          => 0x02000000,
       :KEY128               => 0x20000000,
       :KEY_EXCHANGE         => 0x40000000,
-      :KEY56                => 0x80000000
+      :KEY56                => 0x80000000,
+      # Undocumented flags:
+      :MBZ9                 => 0x00000008,
+      :NETWARE              => 0x00000100,
+      :NEG_NT_ONLY          => 0x00000400,
+      :MBZ7                 => 0x00000800, # alias for :NEG_ANONYMOUS
+      :LOCAL_CALL           => 0x00004000,
   }.freeze
 
   FLAG_KEYS = FLAGS.keys.sort{|a, b| FLAGS[a] <=> FLAGS[b] }
@@ -34,7 +42,6 @@ module NTLM
       :TYPE2 => FLAGS[:UNICODE],
       :TYPE3 => FLAGS[:UNICODE] | FLAGS[:REQUEST_TARGET] | FLAGS[:NTLM] | FLAGS[:ALWAYS_SIGN] | FLAGS[:NTLM2_KEY]
   }
-
 
   # @private false
   class Message < FieldSet
@@ -87,7 +94,7 @@ module NTLM
 
     def serialize
       deflag
-      super + security_buffers.map{|n, f| f.value}.join
+      super + security_buffers.map{|n, f| f.value + (has_flag?(:UNICODE) ? "\x00".b * (f.value.length % 2) : '')}.join
     end
 
     def encode64
@@ -117,6 +124,7 @@ module NTLM
       security_buffers.inject(head_size){|cur, a|
         a[1].offset = cur
         cur += a[1].data_size
+        has_flag?(:UNICODE) ? cur + cur % 2 : cur
       }
     end
 
